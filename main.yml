@@ -8,4 +8,4 @@
   tasks:
     - name: Run our role
       import_role:
-        name: '.'
+        name: '../ansible-home-server'

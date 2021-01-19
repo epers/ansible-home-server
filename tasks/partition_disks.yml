@@ -12,4 +12,14 @@
 - name: 'Gather facts'
   ansible.builtin.gather_facts:
 
-# Wipe disks
+- name: 'Read device information'
+  community.general.parted: device={{ item }} unit=MiB
+  register: 'disk_info'
+  loop: '{{ disks }}'
+
+- name: Remove all partitions from disk
+  community.general.parted:
+    device: '{{ item.0.item }}'
+    number: '{{ item.1.num }}'
+    state: absent
+  loop: "{{ disk_info.results|subelements('partitions')}}"
