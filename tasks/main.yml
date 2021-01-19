@@ -1,2 +1,8 @@
 ---
 # tasks file for ansible-home-server
+
+- name: 'Run presetup [tasks/live_presetup.yml]'
+  ansible.builtin.include: tasks/live_presetup.yml
+
+- name: 'Partition disks [tasks/partition_disks.yml]'
+  ansible.builtin.include: tasks/partition_disks.yml
