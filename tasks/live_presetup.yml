@@ -34,17 +34,60 @@
     line: '{{ ansible_user }} ALL=(ALL) NOPASSWD: ALL'
     create: true
 
-- name: 'Switch to our new {{ ansible_user }} user'
+- name: 'Make sure we are using {{ ansible_user }} user'
   ansible.builtin.set_fact:
     ansible_ssh_user: '{{ ansible_user }}'
     ansible_ssh_pass: ''
     ansible_sudo_pass: ''
     ansible_user: '{{ ansible_user }}'
 
+- name: 'Install ansible prerequesites'
+  ansible.builtin.apt:
+    name:
+      - 'python-apt'
+    state: present
+    update_cache: yes
+
 - name: 'Remove default sources.list file'
   ansible.builtin.file:
     path: '/etc/apt/sources.list'
     state: absent
 
-#- name: 'Install live enviroment base dependencies'
-#  ansible.builtin.apt:
+- name: 'Add main debian repo'
+  ansible.builtin.apt_repository:
+    repo: 'deb http://deb.debian.org/debian/ buster main non-free contrib'
+    state: present
+
+- name: 'Add buster-backports debian repo'
+  ansible.builtin.apt_repository:
+    repo: 'deb http://deb.debian.org/debian/ buster-backports main non-free contrib'
+    state: present
+
+- name: 'Update apt cache'
+  ansible.builtin.apt:
+    update_cache: yes
+
+- name: 'Install live enviroment base dependencies'
+  ansible.builtin.apt:
+    name:
+      - 'gdisk'
+      - 'debootstrap'
+      - 'dkms'
+      - 'linux-headers-{{ ansible_kernel }}'
+
+- name: 'Install zfs in the livecd'
+  ansible.builtin.apt:
+    default_release: buster-backports
+    name:
+      - zfs-dkms
+
+- name: 'modprobe zfs'
+  community.general.modprobe:
+    name: 'zfs'
+    state: present
+
+- name: 'Install zfs in the livecd'
+  ansible.builtin.apt:
+    default_release: buster-backports
+    name:
+      - zfsutils-linux

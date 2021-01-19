@@ -1,8 +1,9 @@
 ---
 # CAUTION: this file will eat your disks for breakfast
+# this tasklist partitions disks in the way we need them to be
 
 # Make sure we're using the proper user - shouldn't need to do this but it's nice to be explicit
-- name: 'Switch to our new {{ ansible_user }} user'
+- name: 'Make sure we are using {{ ansible_user }} user'
   ansible.builtin.set_fact:
     ansible_ssh_user: '{{ ansible_user }}'
     ansible_ssh_pass: ''
@@ -13,13 +14,52 @@
   ansible.builtin.gather_facts:
 
 - name: 'Read device information'
-  community.general.parted: device={{ item }} unit=MiB
+  community.general.parted: 
+    device: '{{ item }}'
+    unit: 'MiB'
   register: 'disk_info'
   loop: '{{ disks }}'
 
-- name: Remove all partitions from disk
+- ansible.builtin.debug:
+    msg: '{{ disks }}'
+
+- name: 'Unmount zfs filesystems'
+  ansible.builtin.command:
+    cmd: 'zfs unmount -a'
+
+- name: 'Unmount filesystems'
+  ansible.builtin.command:
+    cmd: 'umount -Rf /mnt'
+  register: command_result
+  failed_when: "'target is busy' in command_result.stderr"
+
+- name: 'Export any zpools'
+  ansible.builtin.command:
+    cmd: 'zpool export -a'
+
+- name: 'Remove all partitions from disks'
   community.general.parted:
     device: '{{ item.0.item }}'
     number: '{{ item.1.num }}'
     state: absent
   loop: "{{ disk_info.results|subelements('partitions')}}"
+
+- name: 'Run `sgdisk --zap-all`'
+  ansible.builtin.command:
+    cmd: 'sgdisk --zap-all {{ item }}'
+  loop: '{{ disks }}'
+
+- name: 'Create ESP at +1M:+512M'
+  ansible.builtin.command:
+    cmd: 'sgdisk -n2:1M:+512M -t2:EF00 {{ item }}'
+  loop: '{{ disks }}'
+
+- name: 'Create partition for boot pool at 0:+2G'
+  ansible.builtin.command:
+    cmd: 'sgdisk -n3:0:+2G -t3:BF01 {{ item }}'
+  loop: '{{ disks }}'
+
+- name: 'Create partition for root pool at 0::'
+  ansible.builtin.command:
+    cmd: 'sgdisk -n4:0:0 -t4:BF00 {{ item }}'
+  loop: '{{ disks }}'
