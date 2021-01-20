@@ -11,3 +11,97 @@
 - name: 'Gather facts'
   ansible.builtin.gather_facts:
 
+- name: 'Create boot pool'
+  ansible.builtin.command:
+    cmd: >
+      zpool create -f
+      -o ashift=12 
+      -d
+      -o feature@async_destroy=enabled
+      -o feature@bookmarks=enabled
+      -o feature@embedded_data=enabled
+      -o feature@empty_bpobj=enabled
+      -o feature@enabled_txg=enabled
+      -o feature@extensible_dataset=enabled
+      -o feature@filesystem_limits=enabled
+      -o feature@hole_birth=enabled
+      -o feature@large_blocks=enabled
+      -o feature@lz4_compress=enabled
+      -o feature@spacemap_histogram=enabled
+      -o feature@zpool_checkpoint=enabled
+      -O acltype=posixacl 
+      -O canmount=off 
+      -O compression=lz4
+      -O devices=off 
+      -O normalization=formD 
+      -O relatime=on 
+      -O xattr=sa
+      -O mountpoint=/boot 
+      -R /mnt
+      bpool mirror '{{ disks[0] }}-part3' '{{ disks[1] }}-part3'
+
+- name: 'Create root pool'
+  ansible.builtin.command:
+    cmd: >
+      zpool create -f
+      -o ashift=12
+      -O acltype=posixacl 
+      -O canmount=off 
+      -O compression=lz4
+      -O dnodesize=auto 
+      -O normalization=formD 
+      -O relatime=on
+      -O xattr=sa 
+      -O mountpoint=/ 
+      -R /mnt
+      rpool mirror '{{ disks[0] }}-part4' '{{ disks[1] }}-part4'
+
+- name: 'Register output of `zpool list` to zpool_status'
+  ansible.builtin.command:
+    cmd: 'zpool status'
+  register: zpool_status
+
+- name: 'Print contents of zpool_status'
+  ansible.builtin.debug:
+    msg: "{{ zpool_status.stdout_lines }}"
+
+- name: 'Create zfs parent datasets'
+  ansible.builtin.shell:
+    cmd: |
+      zfs create -o canmount=off -o mountpoint=none rpool/ROOT
+      zfs create -o canmount=off -o mountpoint=none bpool/BOOT
+      zfs create -o canmount=noauto -o mountpoint=/ rpool/ROOT/debian
+
+- name: 'Mount zfs root'
+  ansible.builtin.command:
+    cmd: 'zfs mount rpool/ROOT/debian'
+
+- name: 'Create zfs datasets'
+  ansible.builtin.shell:
+    cmd: |
+        zfs create -o mountpoint=/boot bpool/BOOT/debian
+        zfs create                                 rpool/home
+        zfs create -o mountpoint=/root             rpool/home/root
+        zfs create -o canmount=off                 rpool/var
+        zfs create -o canmount=off                 rpool/var/lib
+        zfs create                                 rpool/var/log
+        zfs create                                 rpool/var/spool
+        zfs create -o com.sun:auto-snapshot=false  rpool/var/cache
+        zfs create -o com.sun:auto-snapshot=false  rpool/var/tmp
+        zfs create                                 rpool/opt
+        zfs create -o canmount=off                 rpool/usr
+        zfs create                                 rpool/usr/local
+        zfs create                                 rpool/var/snap
+        zfs create                                 rpool/var/www
+        zfs create -o com.sun:auto-snapshot=false  rpool/var/lib/nfs
+        zfs create -o com.sun:auto-snapshot=false  rpool/var/lib/containers
+
+- name: 'Fix perms on /mnt/var/tmp'
+  ansible.builtin.command:
+    cmd: 'chmod 1777 /mnt/var/tmp'
+
+- name: 'Mount a tmpfs at /mnt/run'
+  ansible.builtin.shell:
+    cmd: |
+      mkdir /mnt/run
+      mount -t tmpfs tmpfs /mnt/run

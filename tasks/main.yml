@@ -6,3 +6,11 @@
 
 - name: 'Partition disks [tasks/partition_disks.yml]'
   ansible.builtin.include: 'tasks/partition_disks.yml'
+
+- name: 'Partition disks [tasks/partition_disks.yml]'
+  ansible.builtin.include: 'tasks/zfs.yml'
+
+- name: 'Run debootstrap'
+  ansible.builtin.command:
+    cmd: 'debootstrap buster /mnt'
+
