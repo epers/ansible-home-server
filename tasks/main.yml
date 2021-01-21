@@ -10,7 +10,11 @@
 - name: 'Partition disks [tasks/partition_disks.yml]'
   ansible.builtin.include: 'tasks/zfs.yml'
 
-- name: 'Run debootstrap'
-  ansible.builtin.command:
-    cmd: 'debootstrap buster /mnt'
+- name: 'Run bootstrap [tasks/debootstrap.yml]'
+  ansible.builtin.include: 'tasks/debootstrap.yml'
 
+- name: 'Configure before chroot [tasks/configure_prechroot.yml]'
+  ansible.builtin.include: 'tasks/configure_chroot.yml'
+
+- name: 'Setup and enter chroot [tasks/enter_chroot.yml]'
+  ansible.builtin.include: 'tasks/enter_chroot.yml'

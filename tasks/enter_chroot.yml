@@ -1,0 +1,55 @@
+---
+# this tasklist sets up our chroot
+
+- name: 'Make sure we are using our {{ _ansible_user }} user'
+  ansible.builtin.set_fact:
+    ansible_ssh_user: '{{ _ansible_user }}'
+    ansible_ssh_pass: ''
+    ansible_sudo_pass: ''
+    ansible_user: '{{ _ansible_user }}'
+
+- name: 'Setup /dev, /proc, and /sys mounts'
+  ansible.builtin.shell:
+    cmd: |
+      mount --rbind /dev  /mnt/dev
+      mount --rbind /proc /mnt/proc
+      mount --rbind /sys  /mnt/sys
+
+- name: 'Run apt update inside chroot'
+  ansible.builtin.command:
+    cmd: 'chroot /mnt /usr/bin/apt -yq update'
+
+- name: 'Run apt install openssh-server, sudo, python, and python3 inside chroot'
+  ansible.builtin.command:
+    cmd: 'chroot /mnt /usr/bin/apt -yq install openssh-server sudo python python3'
+
+- name: 'Configure ssh port inside chroot'
+  ansible.builtin.lineinfile:
+    path: '/mnt/etc/ssh/sshd_config'
+    regexp: '^#Port 22'
+    line: 'Port {{ ssh_port }}'
+
+- name: 'Create /run/sshd inside chroot'
+  ansible.builtin.file:
+    path: /mnt/run/sshd
+    state: directory
+    owner: 'root'
+    group: 'root'
+    mode: '0755'
+
+- name: 'Start sshd in chroot'
+  ansible.builtin.command:
+    cmd: 'chroot /mnt /usr/sbin/sshd'
+
+- name: 'Switch ssh port to chroot'
+  ansible.builtin.set_fact:
+    ansible_ssh_port: '{{ ssh_port }}'
+
+- name: 'Cat /etc/hostname to debug output'
+  ansible.builtin.command:
+    cmd: 'cat /etc/hostname'
+  register: 'out'
+
+- name: 'Print results of `cat /etc/hostname`'
+  ansible.builtin.debug:
+    msg: '{{ out }}'

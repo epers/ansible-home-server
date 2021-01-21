@@ -3,12 +3,12 @@
 # this tasklist partitions disks in the way we need them to be
 
 # Make sure we're using the proper user - shouldn't need to do this but it's nice to be explicit
-- name: 'Make sure we are using {{ ansible_user }} user'
+- name: 'Make sure we are using {{ _ansible_user }} user'
   ansible.builtin.set_fact:
-    ansible_ssh_user: '{{ ansible_user }}'
+    ansible_ssh_user: '{{ _ansible_user }}'
     ansible_ssh_pass: ''
     ansible_sudo_pass: ''
-    ansible_user: '{{ ansible_user }}'
+    ansible_user: '{{ _ansible_user }}'
 
 - name: 'Gather facts'
   ansible.builtin.gather_facts:
@@ -20,7 +20,8 @@
   register: 'disk_info'
   loop: '{{ disks }}'
 
-- ansible.builtin.debug:
+- name: 'Print disk info'
+  ansible.builtin.debug:
     msg: '{{ disks }}'
 
 - name: 'Unmount zfs filesystems'

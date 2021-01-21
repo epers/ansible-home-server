@@ -13,33 +13,33 @@
 - name: 'Gather facts'
   ansible.builtin.gather_facts:
 
-- name: 'Create {{ ansible_user }} group'
+- name: 'Create {{ _ansible_user }} group'
   ansible.builtin.group:
-    name: '{{ ansible_user }}'
+    name: '{{ _ansible_user }}'
 
-- name: 'Create {{ ansible_user }} user'
+- name: 'Create {{ _ansible_user }} user'
   ansible.builtin.user:
-    name: '{{ ansible_user }}'
-    group: '{{ ansible_user }}'
+    name: '{{ _ansible_user }}'
+    group: '{{ _ansible_user }}'
 
-- name: 'Set authorized key for {{ ansible_user }} from host variable'
+- name: 'Set authorized key for {{ _ansible_user }} from host variable'
   ansible.posix.authorized_key:
-    user: '{{ ansible_user }}'
+    user: '{{ _ansible_user }}'
     state: present
-    key: '{{ ansible_ssh_key }}'
+    key: '{{ _ansible_ssh_key }}'
 
-- name: 'Set passwordless sudo for {{ ansible_user }} user [/etc/sudoers.d/{{ ansible_user }}]'
+- name: 'Set passwordless sudo for {{ _ansible_user }} user [/etc/sudoers.d/{{ _ansible_user }}]'
   ansible.builtin.lineinfile:
-    path: '/etc/sudoers.d/{{ ansible_user }}'
-    line: '{{ ansible_user }} ALL=(ALL) NOPASSWD: ALL'
+    path: '/etc/sudoers.d/{{ _ansible_user }}'
+    line: '{{ _ansible_user }} ALL=(ALL) NOPASSWD: ALL'
     create: true
 
-- name: 'Make sure we are using {{ ansible_user }} user'
+- name: 'Make sure we are using {{ _ansible_user }} user'
   ansible.builtin.set_fact:
-    ansible_ssh_user: '{{ ansible_user }}'
+    ansible_ssh_user: '{{ _ansible_user }}'
     ansible_ssh_pass: ''
     ansible_sudo_pass: ''
-    ansible_user: '{{ ansible_user }}'
+    ansible_user: '{{ _ansible_user }}'
 
 - name: 'Install ansible prerequesites'
   ansible.builtin.apt:

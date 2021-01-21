@@ -1,0 +1,112 @@
+---
+# this tasklist sets up a few things before we chroot into the new enviroment
+
+- name: 'Make sure we are using our {{ _ansible_user }} user'
+  ansible.builtin.set_fact:
+    ansible_ssh_user: '{{ _ansible_user }}'
+    ansible_ssh_pass: ''
+    ansible_sudo_pass: ''
+    ansible_user: '{{ _ansible_user }}'
+
+- name: 'Ensure /mnt/etc/hostname is empty'
+  ansible.builtin.file:
+    path: '/mnt/etc/hostname'
+    state: absent
+
+- name: 'Configure /mnt/etc/hostname'
+  ansible.builtin.lineinfile:
+    path: '/mnt/etc/hostname'
+    create: true
+    line: '{{ hostname }}'
+
+- name: 'Configure /mnt/etc/hosts'
+  ansible.builtin.lineinfile:
+    path: '/mnt/etc/hosts'
+    line: '{{ network_interface.address }} {{ hostname }} {{ hostname }}.{{ domainname }}'
+    
+- name: 'Ensure /mnt/etc/network/interfaces is empty'
+  ansible.builtin.file:
+    path: '/mnt/etc/network/interfaces'
+    state: absent
+
+- name: 'Configure /mnt/etc/network/interfaces - dhcp'
+  ansible.builtin.blockinfile:
+    path: '/mnt/etc/network/interfaces'
+    create: true
+    block: |
+      auto lo
+      iface lo inet loopback
+      auto {{ network_interface.name }}
+      iface {{ network_interface.name }} inet {{ network_interface.address_type }}
+  when: 'network_interface.address_type == "dhcp"'
+  
+- name: 'Configure /mnt/etc/network/interfaces - static'
+  ansible.builtin.blockinfile:
+    path: '/mnt/etc/network/interfaces'
+    create: true
+    block: |
+      auto lo
+      iface lo inet loopback
+      auto {{ network_interface.name }}
+      iface {{ network_interface.name }} inet {{ network_interface.address_type }}
+        address {{ network_interface.address }}/{{ network_interface.prefix_length }}
+  when: 'network_interface.address_type == "static"'
+
+- name: 'Ensure /mnt/etc/apt/sources.list is empty'
+  ansible.builtin.file:
+    path: '/mnt/etc/apt/sources.list'
+    state: absent
+
+- name: 'Configure /mnt/etc/apt/sources.list'
+  ansible.builtin.blockinfile:
+    path: '/mnt/etc/apt/sources.list'
+    create: true
+    block: |
+      deb http://deb.debian.org/debian buster main contrib
+      deb-src http://deb.debian.org/debian buster main contrib
+      deb http://security.debian.org/debian-security buster/updates main contrib
+      deb-src http://security.debian.org/debian-security buster/updates main contrib
+      deb http://deb.debian.org/debian buster-updates main contrib
+      deb-src http://deb.debian.org/debian buster-updates main contrib
+      deb http://deb.debian.org/debian buster-backports main contrib
+      deb-src http://deb.debian.org/debian buster-backports main contrib
+
+- name: 'Configure /mnt/etc/apt/preferences.d/99_zfs to prefer zfs packages from buster-backports'
+  ansible.builtin.blockinfile:
+    path: '/mnt/etc/apt/preferences.d/99_zfs'
+    create: true
+    block: |
+      Package: libnvpair1linux libuutil1linux libzfs2linux libzfslinux-dev libzpool2linux python3-pyzfs pyzfs-doc spl spl-dkms zfs-dkms zfs-dracut zfs-initramfs zfs-test zfsutils-linux zfsutils-linux-dev zfs-zed
+      Pin: release n=buster-backports
+      Pin-Priority: 990
+
+- name: 'Create {{ _ansible_user }} group in chroot'
+  ansible.builtin.shell:
+    cmd: 'chroot /mnt /usr/sbin/groupadd -g 1101 {{ _ansible_user }}'
+
+- name: 'Create {{ _ansible_user }} user in chroot'
+  ansible.builtin.shell:
+    cmd: 'chroot /mnt /usr/sbin/useradd -u 1101 -g 1101 {{ _ansible_user }}'
+
+- name: 'Create /home/{{ _ansible_user }}/.ssh in chroot'
+  ansible.builtin.file:
+    path: '/mnt/home/{{ _ansible_user }}/.ssh'
+    state: directory
+
+- name: 'Add our ssh key to {{ _ansible_user }} in chroot'
+  ansible.builtin.lineinfile:
+    path: '/mnt/home/{{ _ansible_user }}/.ssh/authorized_keys'
+    line: '{{ _ansible_ssh_key }}'
+    create: true
+
+- name: 'Fix ownership of /home/{{ _ansible_user }} in chroot'
+  ansible.builtin.shell:
+    cmd: |
+      chroot /mnt /usr/bin/chown -R {{ _ansible_user }}:{{ _ansible_user }} /home/{{ _ansible_user }}
+      chroot /mnt /usr/bin/chmod -R 700 /home/{{ _ansible_user }}
+
+- name: 'Set passwordless sudo for {{ _ansible_user }} user in chroot [/mnt/etc/sudoers.d/{{ _ansible_user }}]'
+  ansible.builtin.lineinfile:
+    path: '/mnt/etc/sudoers.d/{{ _ansible_user }}'
+    line: '{{ _ansible_user }} ALL=(ALL) NOPASSWD: ALL'
+    create: true

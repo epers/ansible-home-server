@@ -1,0 +1,23 @@
+---
+# this task file fixes some perms and runs debootstrap against the target
+
+- name: 'Make sure we are using {{ _ansible_user }} user'
+  ansible.builtin.set_fact:
+    ansible_ssh_user: '{{ _ansible_user }}'
+    ansible_ssh_pass: ''
+    ansible_sudo_pass: ''
+    ansible_user: '{{ _ansible_user }}'
+
+- name: 'Fix perms on /mnt/var/tmp'
+  ansible.builtin.command:
+    cmd: 'chmod 1777 /mnt/var/tmp'
+
+- name: 'Mount a tmpfs at /mnt/run'
+  ansible.builtin.shell:
+    cmd: |
+      mkdir /mnt/run
+      mount -t tmpfs tmpfs /mnt/run
+
+- name: 'Run debootstrap'
+  ansible.builtin.command:
+    cmd: 'debootstrap buster /mnt'

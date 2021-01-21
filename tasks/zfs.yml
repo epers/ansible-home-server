@@ -1,12 +1,12 @@
 ---
-# this tasklist installs zfs packages and creates the zpool/zfs layout we need
+# this tasklist creates the zpool/zfs layout we need
 
-- name: 'Make sure we are using {{ ansible_user }} user'
+- name: 'Make sure we are using {{ _ansible_user }} user'
   ansible.builtin.set_fact:
-    ansible_ssh_user: '{{ ansible_user }}'
+    ansible_ssh_user: '{{ _ansible_user }}'
     ansible_ssh_pass: ''
     ansible_sudo_pass: ''
-    ansible_user: '{{ ansible_user }}'
+    ansible_user: '{{ _ansible_user }}'
 
 - name: 'Gather facts'
   ansible.builtin.gather_facts:
@@ -95,13 +95,3 @@
         zfs create                                 rpool/var/www
         zfs create -o com.sun:auto-snapshot=false  rpool/var/lib/nfs
         zfs create -o com.sun:auto-snapshot=false  rpool/var/lib/containers
-
-- name: 'Fix perms on /mnt/var/tmp'
-  ansible.builtin.command:
-    cmd: 'chmod 1777 /mnt/var/tmp'
-
-- name: 'Mount a tmpfs at /mnt/run'
-  ansible.builtin.shell:
-    cmd: |
-      mkdir /mnt/run
-      mount -t tmpfs tmpfs /mnt/run
