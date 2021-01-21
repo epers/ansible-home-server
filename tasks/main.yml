@@ -13,8 +13,8 @@
 - name: 'Run bootstrap [tasks/debootstrap.yml]'
   ansible.builtin.include: 'tasks/debootstrap.yml'
 
-- name: 'Configure before chroot [tasks/configure_prechroot.yml]'
-  ansible.builtin.include: 'tasks/configure_chroot.yml'
+- name: 'Configure before chroot [tasks/setup_chroot.yml]'
+  ansible.builtin.include: 'tasks/setup_chroot.yml'
 
 - name: 'Setup and enter chroot [tasks/enter_chroot.yml]'
   ansible.builtin.include: 'tasks/enter_chroot.yml'
