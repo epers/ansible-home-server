@@ -1,0 +1,27 @@
+---
+# this tasklist sets up networking inside the chroot
+
+
+- name: 'Configure /etc/network/interfaces - dhcp'
+  ansible.builtin.blockinfile:
+    path: '/etc/network/interfaces'
+    create: true
+    block: |
+      auto lo
+      iface lo inet loopback
+      auto {{ network_interface.name }}
+      iface {{ network_interface.name }} inet {{ network_interface.address_type }}
+  when: 'network_interface.address_type == "dhcp"'
+  
+- name: 'Configure /etc/network/interfaces - static'
+  ansible.builtin.blockinfile:
+    path: '/etc/network/interfaces'
+    create: true
+    block: |
+      auto lo
+      iface lo inet loopback
+      auto {{ network_interface.name }}
+      iface {{ network_interface.name }} inet {{ network_interface.address_type }}
+        address {{ network_interface.address }}/{{ network_interface.prefix_length }}
+  when: 'network_interface.address_type == "static"'
+
