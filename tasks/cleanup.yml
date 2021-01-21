@@ -1,0 +1,20 @@
+---
+# this tasklist unmounts filesystems and reboots the system
+
+- name: 'Switch back to livecd system'
+  ansible.builtin.set_fact:
+    ansible_ssh_user: '{{ _ansible_user }}'
+    ansible_ssh_pass: ''
+    ansible_sudo_pass: ''
+    ansible_user: '{{ _ansible_user }}'
+    ansible_ssh_port: '22'
+
+- name: 'Unmount filesystems'
+  ansible.builtin.shell:
+    cmd: |
+      mount | grep -v zfs | tac | awk '/\/mnt/ {print $3}' | xargs -i{} umount -lf {}
+      zpool export -a
+
+- name: 'Blind reboot system and exit playbook'
+  ansible.builtin.shell:
+    cmd: 'systemctl reboot'

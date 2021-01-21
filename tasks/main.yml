@@ -7,8 +7,8 @@
 - name: 'Partition disks [tasks/partition_disks.yml]'
   ansible.builtin.include: 'tasks/partition_disks.yml'
 
-- name: 'Partition disks [tasks/partition_disks.yml]'
-  ansible.builtin.include: 'tasks/zfs.yml'
+- name: 'Partition disks [tasks/zfs_live.yml]'
+  ansible.builtin.include: 'tasks/zfs_live.yml'
 
 - name: 'Run bootstrap [tasks/debootstrap.yml]'
   ansible.builtin.include: 'tasks/debootstrap.yml'
@@ -21,3 +21,10 @@
 
 - name: 'Configure networking [tasks/networking.yml]'
   ansible.builtin.include: 'tasks/networking.yml'
+
+- name: 'Configure chroot [tasks/configure_chroot.yml]'
+  ansible.builtin.include: 'tasks/configure_chroot.yml'
+
+- name: 'Run cleanup [tasks/cleanup.yml]'
+  ansible.builtin.include: 'tasks/cleanup.yml'
+  

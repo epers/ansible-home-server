@@ -1,0 +1,261 @@
+---
+# this tasklist runs inside the chroot and sets up zfs and grub
+
+- name: 'Make sure we are using our {{ _ansible_user }} user and ssh port {{ ssh_port }}'
+  ansible.builtin.set_fact:
+    ansible_ssh_user: '{{ _ansible_user }}'
+    ansible_ssh_pass: ''
+    ansible_sudo_pass: ''
+    ansible_user: '{{ _ansible_user }}'
+    ansible_ssh_port: '{{ ssh_port }}'
+
+
+- name: 'Symlink /proc/self/mounts to /etc/mtab'
+  ansible.builtin.command:
+    cmd: 'ln -sf /proc/self/mounts /etc/mtab'
+
+- name: 'Clear /etc/resolv.conf'
+  ansible.builtin.file:
+    path: '/etc/resolv.conf'
+    state: absent
+
+- name: 'Setup /etc/resolv.conf'
+  ansible.builtin.lineinfile:
+    path: '/etc/resolv.conf'
+    create: true
+    line: 'nameserver 10.10.10.10'
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: 'Setup locale'
+  ansible.builtin.shell:
+    cmd: |
+      export LANG=en_US.UTF-8
+      export LANGUAGE=en_US.UTF-8
+      export LC_ALL=en_US.UTF-8
+      apt-get -yq install locales
+      echo "LANG=en_US.UTF-8" >/etc/default/locale
+      echo "en_US.UTF-8 UTF-8" >/etc/locale.gen
+      locale-gen
+      update-locale LANG=en_US.UTF-8
+      dpkg-reconfigure -f noninteractive locales
+
+- name: 'Setup timezone'
+  ansible.builtin.shell:
+    cmd: |
+      ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime
+      dpkg-reconfigure -f noninteractive tzdata
+
+- name: 'Remove default packages'
+  ansible.builtin.apt:
+    name:
+      - iptables
+      - ntp
+      - ifupdown
+    state: absent
+
+- name: 'Install packages'
+  ansible.builtin.apt:
+    name:
+      - nftables
+      - console-setup
+      - gnupg2
+      - ca-certificates
+      - dirmngr
+      - ifupdown2
+      - parted
+      - mtr-tiny
+      - curl
+      - wget
+      - git
+      - sudo
+      - amd64-microcode
+      - intel-microcode
+      - firmware-linux
+      - apt-transport-https
+      - openssl
+      - net-tools
+      - gdisk
+      - ethtool
+      - dnsutils
+      - lm-sensors
+      - chrony
+      - dosfstools
+      - grub-efi-amd64
+      - shim-signed
+
+- name: 'Enable tmpfs'
+  ansible.builtin.file:
+    src: /usr/share/systemd/tmp.mount
+    dest: /etc/systemd/system/tmp.mount
+    state: link
+
+- name: 'Configure services'
+  ansible.builtin.shell:
+    cmd: |
+      systemctl enable tmp.mount
+      systemctl enable ssh.service
+      systemctl enable autitd.service
+      systemctl enable nftables.service
+      systemctl enable networking.service
+      systemctl enable netdata.service
+      systemctl enable frr.service
+      systemctl enable chrony.service
+      systemctl enable zabbix-agent.service
+      systemctl mask pvebanner.service
+
+- name: 'Install zfs in the chroot'
+  ansible.builtin.apt:
+    name:
+      - dpkg-dev 
+      - linux-headers-amd64 
+      - linux-image-amd64
+
+- name: 'Install zfs in the chroot'
+  ansible.builtin.apt:
+    name:
+      - zfs-initramfs
+
+- name: 'Create filesystem on ESP partition on disk 0'
+  ansible.builtin.shell:
+    cmd: |
+      mkdosfs -F 32 -s 1 -n EFI {{ disks[0] }}-part2
+
+- name: 'Create /boot/efi directory'
+  ansible.builtin.file:
+    path: '/boot/efi'
+    state: directory
+
+- name: 'Clear /etc/fstab'
+  ansible.builtin.file:
+    path: '/etc/fstab'
+    state: absent
+
+- name: 'Add ESP to /etc/fstab'
+  ansible.builtin.shell:
+    cmd: >
+      echo /dev/disk/by-uuid/$(blkid -s UUID -o value {{ disks[0] }}-part2)
+      /boot/efi vfat
+      x-systemd.idle-timeout=1min,x-systemd.automount,noauto
+      0 1 >> /etc/fstab
+
+- name: 'Mount /boot/efi'
+  ansible.builtin.shell:
+    cmd: 'mount /boot/efi'
+
+- name: 'Remove os-prober'
+  ansible.builtin.apt:
+    name:
+      - os-prober
+    state: absent
+
+- name: 'Create /etc/systemd/system/zfs-import-bpool.service to ensure bpool is mounted'
+  ansible.builtin.blockinfile:
+    path: '/etc/systemd/system/zfs-import-bpool.service'
+    create: true
+    block: |
+      [Unit]
+      DefaultDependencies=no
+      Before=zfs-import-scan.service
+      Before=zfs-import-cache.service
+      
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/sbin/zpool import -N -o cachefile=none bpool
+      # Work-around to preserve zpool cache:
+      ExecStartPre=-/bin/mv /etc/zfs/zpool.cache /etc/zfs/preboot_zpool.cache
+      ExecStartPost=-/bin/mv /etc/zfs/preboot_zpool.cache /etc/zfs/zpool.cache
+      
+      [Install]
+      WantedBy=zfs-import.target
+
+- name: 'systemctl enable zfs-import-bpool.service'
+  ansible.builtin.shell:
+    cmd: 'systemctl enable zfs-import-bpool.service'
+
+- name: 'refresh initramfs'
+  ansible.builtin.shell:
+    cmd: 'update-initramfs -c -k all'
+
+- name: 'set GRUB_CMDLINE_LINUX=root=ZFS=rpool/ROOT/debian'
+  ansible.builtin.lineinfile:
+    path: '/etc/default/grub'
+    regexp: '^GRUB_CMDLINE_LINUX=""'
+    line: GRUB_CMDLINE_LINUX="root=ZFS=rpool/ROOT/debian"
+
+- name: 'run update-grub'
+  ansible.builtin.shell:
+    cmd: 'update-grub'
+
+- name: 'install grub to esp'
+  ansible.builtin.shell:
+    cmd: 'grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=debian --recheck --no-floppy'
+
+- name: 'Setup zfs cache services'
+  ansible.builtin.shell:
+    cmd: |
+      mkdir /etc/zfs/zfs-list.cache
+      touch /etc/zfs/zfs-list.cache/bpool
+      touch /etc/zfs/zfs-list.cache/rpool
+      ln -s /usr/lib/zfs-linux/zed.d/history_event-zfs-list-cacher.sh /etc/zfs/zed.d
+      zed &
+
+- name: 'Sleep for 5 seconds'
+  ansible.builtin.wait_for:
+    timeout: 5
+
+- name: 'Force a zfs cache update'
+  ansible.builtin.shell:
+    cmd: |
+      zfs set canmount=on     bpool/BOOT/debian
+      zfs set canmount=noauto rpool/ROOT/debian
+
+- name: 'Sleep for 5 seconds (again)'
+  ansible.builtin.wait_for:
+    timeout: 5
+
+- name: 'Force a zfs cache update (again)'
+  ansible.builtin.shell:
+    cmd: |
+      zfs set canmount=on     bpool/BOOT/debian
+      zfs set canmount=noauto rpool/ROOT/debian
+
+- name: 'Wait until /etc/zfs/zfs-list.cache/bpool has content'
+  ansible.builtin.wait_for:
+    path: '/etc/zfs/zfs-list.cache/bpool'
+    search_regex: '^.*bpool.*'
+
+- name: 'Kill zed daemon'
+  ansible.builtin.shell:
+    cmd: 'pkill zed'
+
+- name: 'Fix paths in zpool cache files'
+  ansible.builtin.shell:
+    cmd: 'sed -Ei "s|/mnt/?|/|" /etc/zfs/zfs-list.cache/*'
+
+- name: 'Set authorized key for {{ _ansible_user }}'
+  ansible.posix.authorized_key:
+    user: '{{ _ansible_user }}'
+    state: present
+    key: "{{ _ansible_ssh_key }}"
+
+- name: 'Set authorized key for root'
+  ansible.posix.authorized_key:
+    user: 'root'
+    state: present
+    key: "{{ root_ssh_key }}"
+
+- name: 'Set root password'
+  ansible.builtin.user:
+    user: 'root'
+    password: '{{ root_password }}'
+
+- name: 'Unmount /boot/efi'
+  ansible.builtin.shell:
+    cmd: 'umount /boot/efi'
+
+- name: 'Mirror ESP'
+  ansible.builtin.shell:
+    cmd: 'dd if={{ disks[0] }}-part2 of={{ disks[1] }}-part2'

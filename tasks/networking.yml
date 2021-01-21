@@ -1,6 +1,13 @@
 ---
 # this tasklist sets up networking inside the chroot
 
+- name: 'Make sure we are using our {{ _ansible_user }} user and ssh port {{ ssh_port }}'
+  ansible.builtin.set_fact:
+    ansible_ssh_user: '{{ _ansible_user }}'
+    ansible_ssh_pass: ''
+    ansible_sudo_pass: ''
+    ansible_user: '{{ _ansible_user }}'
+    ansible_ssh_port: '{{ ssh_port }}'
 
 - name: 'Configure /etc/network/interfaces - dhcp'
   ansible.builtin.blockinfile:
