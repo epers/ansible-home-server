@@ -74,6 +74,7 @@
       - 'debootstrap'
       - 'dkms'
       - 'linux-headers-{{ ansible_kernel }}'
+    state: present
 
 - name: 'Install zfs in the livecd'
   ansible.builtin.apt:
@@ -91,3 +92,4 @@
     default_release: buster-backports
     name:
       - zfsutils-linux
+    state: present

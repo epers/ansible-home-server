@@ -84,6 +84,9 @@
       - dosfstools
       - grub-efi-amd64
       - shim-signed
+      - psmisc
+      - lsof
+    state: present
 
 - name: 'Enable tmpfs'
   ansible.builtin.file:

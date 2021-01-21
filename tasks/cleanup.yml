@@ -9,11 +9,25 @@
     ansible_user: '{{ _ansible_user }}'
     ansible_ssh_port: '22'
 
+- name: 'Kill all processes running under /mnt (with lsof)'
+  ansible.builtin.shell:
+    cmd: 'kill -9 $(lsof -t +D /mnt)'
+    
+- name: 'Unmount all filesystems under /mnt'
+  ansible.builtin.shell:
+    cmd: 'umount -Rf /mnt'
+
+- name: 'Unmount all zfs filesystems'
+  ansible.builtin.shell:
+    cmd: 'zfs unmount -a'
+
 - name: 'Unmount filesystems'
   ansible.builtin.shell:
-    cmd: |
-      mount | grep -v zfs | tac | awk '/\/mnt/ {print $3}' | xargs -i{} umount -lf {}
-      zpool export -a
+    cmd: "mount | grep -v zfs | tac | awk '/\/mnt/ {print $3}' | xargs -i{} umount -lf {}"
+
+- name: 'Export zpools'
+  ansible.builtin.shell:
+    cmd: 'zpool export -a -f'
 
 - name: 'Blind reboot system and exit playbook'
   ansible.builtin.shell:
