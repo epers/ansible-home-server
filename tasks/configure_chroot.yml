@@ -186,7 +186,7 @@
   ansible.builtin.lineinfile:
     path: '/etc/default/grub'
     regexp: '^GRUB_CMDLINE_LINUX=""'
-    line: GRUB_CMDLINE_LINUX="root=ZFS=rpool/ROOT/debian"
+    line: GRUB_CMDLINE_LINUX="root=ZFS=rpool/ROOT/debian zfsforce=1"
 
 - name: 'run update-grub'
   ansible.builtin.shell:

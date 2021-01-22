@@ -13,22 +13,31 @@
   ansible.builtin.shell:
     cmd: 'kill -9 $(lsof -t +D /mnt)'
     
+- name: 'Copy /etc/hostid into chroot'
+  ansible.builtin.shell:
+    cmd: 'cp /etc/hostid /mnt/etc/hostid'
+
 - name: 'Unmount all filesystems under /mnt'
   ansible.builtin.shell:
     cmd: 'umount -Rf /mnt'
+  ignore_errors: yes
 
 - name: 'Unmount all zfs filesystems'
   ansible.builtin.shell:
     cmd: 'zfs unmount -a'
+  ignore_errors: yes
 
 - name: 'Unmount filesystems'
   ansible.builtin.shell:
     cmd: "mount | grep -v zfs | tac | awk '/\/mnt/ {print $3}' | xargs -i{} umount -lf {}"
+  ignore_errors: yes
 
 - name: 'Export zpools'
   ansible.builtin.shell:
     cmd: 'zpool export -a -f'
+  ignore_errors: yes
 
 - name: 'Blind reboot system and exit playbook'
   ansible.builtin.shell:
     cmd: 'systemctl reboot'
+  ignore_errors: yes
