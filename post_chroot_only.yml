@@ -1,0 +1,13 @@
+---
+
+- name: Bootstrap Home Server
+  hosts: all
+  become: yes
+  gather_facts: no
+
+  tasks:
+    - name: 'Configure networking [tasks/networking.yml]'
+      ansible.builtin.include: 'tasks/networking.yml'
+
+    - name: 'Configure chroot [tasks/configure_chroot.yml]'
+      ansible.builtin.include: 'tasks/configure_chroot.yml'
