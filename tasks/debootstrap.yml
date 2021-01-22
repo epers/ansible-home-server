@@ -21,3 +21,7 @@
 - name: 'Run debootstrap'
   ansible.builtin.command:
     cmd: 'debootstrap buster /mnt'
+
+- name: 'Copy /etc/hostid into chroot'
+  ansible.builtin.shell:
+    cmd: 'cp /etc/hostid /mnt/etc/hostid'
