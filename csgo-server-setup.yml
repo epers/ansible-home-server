@@ -1,0 +1,85 @@
+---
+
+- name: setup/update csgo service
+  hosts: all
+  become: yes
+  gather_facts: false
+
+  tasks:
+    - name: 'Make sure we are using the {{ _ansible_user }} account'
+      ansible.builtin.set_fact:
+        ansible_ssh_user: '{{ _ansible_user }}'
+        ansible_ssh_pass: ''
+        ansible_sudo_pass: ''
+        ansible_user: '{{ _ansible_user }}'
+
+    - name: 'Gather facts'
+      ansible.builtin.gather_facts:
+
+    - name: 'Stop csgo.service'
+      ansible.builtin.systemd:
+        name: csgo.service
+        enabled: no
+        masked: no
+        state: stopped
+      ignore_errors: yes
+
+    - name: 'Create /etc/systemd/system/csgo.service'
+      ansible.builtin.blockinfile:
+        path: /etc/systemd/system/csgo.service
+        create: yes
+        owner: root
+        group: root
+        mode: '0644'
+        block: |
+          [Unit]
+          Description=csgo server
+
+          [Service]
+          User=root
+          Type=oneshot
+          RemainAfterExit=true
+          WorkingDirectory=/opt/csgo
+          ExecStart=/usr/local/bin/podman-compose up -d --remove-orphans
+          ExecStop=/usr/local/bin/podman-compose down
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: 'run systemctl daemon-reload'
+      ansible.builtin.systemd:
+        daemon_reload: yes
+
+    - name: 'Create /opt/csgo/data'
+      ansible.builtin.file:
+        path: /opt/csgo/data
+        state: directory
+        owner: '1000'
+        group: '1000'
+        mode: '0700'
+
+    - name: 'Create /opt/csgo/docker-compose.yml'
+      ansible.builtin.blockinfile:
+        path: /opt/csgo/docker-compose.yml
+        create: true
+        owner: root
+        group: root
+        mode: '0644'
+        block: |
+          version: "3.0"
+          services:
+            csgo:
+              image: docker.io/cm2network/csgo:sourcemod
+              environment:
+                - SRCDS_TOKEN=
+                - SRCDS_WORKSHOP_AUTHKEY=
+                - SRCDS_RCONPW=password
+                - SRCDS_PW=password
+                - SRCDS_FPSMAX=80
+                - SRCDS_TICKRATE=64
+              ports:
+                - "27015:27015"
+                - "27015:27015/udp"
+              volumes:
+                - /opt/csgo/data:/home/steam/csgo-dedicated
+              network_mode: "host"

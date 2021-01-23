@@ -16,7 +16,6 @@
     - name: 'Gather facts'
       ansible.builtin.gather_facts:
 
-
     - name: update apt cache
       ansible.builtin.apt:
         update_cache: true
@@ -35,22 +34,23 @@
 
     - name: add buster-backports repo
       ansible.builtin.apt_repository:
-        repo: deb http://deb.debian.org/debian/ buster-backports main contrib non-free
+        repo: 'deb http://deb.debian.org/debian/ buster-backports main contrib non-free'
         state: present
     
     - name: add podman repo key
       ansible.builtin.apt_key:
-        url: https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Debian_10/Release.key
+        url: 'https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Debian_10/Release.key'
         state: present
     
     - name: add podman repo
       ansible.builtin.apt_repository:
-        repo: deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Debian_10/ /
+        repo: 'deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Debian_10/ /'
         state: present
 
     - name: install libseccomp2 from backports
       ansible.builtin.apt:
-        name: libseccomp2
+        name: 
+          - libseccomp2
         state: latest
         default_release: buster-backports
     
@@ -63,12 +63,13 @@
 
     - name: install podman-compose
       ansible.builtin.pip:
-        name: podman-compose
+        name: 
+          - podman-compose
         executable: pip3
 
     - name: enable user namespaces
       ansible.posix.sysctl:
-        name: kernel.unprivileged_userns_clone
+        name: 'kernel.unprivileged_userns_clone'
         value: 1
         state: present
         reload: true
