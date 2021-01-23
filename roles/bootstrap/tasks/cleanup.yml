@@ -36,4 +36,5 @@
 - name: 'Blind reboot system and exit playbook'
   ansible.builtin.shell:
     cmd: 'systemctl reboot'
+  ignore_errors: yes
   ignore_unreachable: yes

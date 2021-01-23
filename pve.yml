@@ -1,0 +1,57 @@
+---
+
+- name: Install Proxmox VE
+  hosts: all
+  become: yes
+  gather_facts: no
+
+  tasks:
+
+    - name: 'Make sure we are using the default "user" account provided by the livecd'
+      ansible.builtin.set_fact:
+        ansible_ssh_user: '{{ _ansible_user }}'
+        ansible_ssh_pass: ''
+        ansible_sudo_pass: ''
+        ansible_user: '{{ _ansible_user }}'
+
+    - name: 'Gather facts'
+      ansible.builtin.gather_facts:
+    
+    - name: remove proxmox enterprise repo
+      ansible.builtin.apt_repository:
+          repo: deb https://enterprise.proxmox.com/debian/pve buster pve-enterprise
+          state: absent
+
+    - name: add proxmox repo key
+      ansible.builtin.apt_key:
+        url: http://download.proxmox.com/debian/proxmox-ve-release-6.x.gpg
+        state: present
+
+    - name: add proxmox repo
+      ansible.builtin.apt_repository:
+        repo: deb http://download.proxmox.com/debian/pve buster pve-no-subscription
+        state: present
+
+    - name: apt dist-upgrade
+      ansible.builtin.apt:
+        update_cache: yes
+        upgrade: dist
+
+    - name: install misc packages
+      ansible.builtin.apt:
+        name:
+          - curl
+          - wget
+          - bridge-utils
+          - ifupdown2
+
+    - name: install proxmox-ve
+      ansible.builtin.apt:
+        name: proxmox-ve
+        state: present
+        install_recommends: yes
+
+    - name: remove proxmox enterprise repo
+      ansible.builtin.apt_repository:
+        repo: deb https://enterprise.proxmox.com/debian/pve buster pve-enterprise
+        state: absent

@@ -23,7 +23,7 @@
   ansible.builtin.lineinfile:
     path: '/etc/resolv.conf'
     create: true
-    line: 'nameserver 10.10.10.10'
+    line: 'nameserver 192.168.155.1'
     owner: root
     group: root
     mode: '0755'
